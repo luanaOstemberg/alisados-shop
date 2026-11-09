@@ -5,7 +5,7 @@ function auth(req, res, next) {
     if (!token) return res.status(401).json({ message: 'Sin token' });
 
     try {
-        req.user = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = jwt.verify(token, process.env.SECRET_JWT);
         next();
     } catch {
         res.status(401).json({ message: 'Token inválido' });
