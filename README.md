@@ -59,10 +59,11 @@ src/
       register.js                # Registro de usuario
       login.js                   # Login + emisión de JWT
     categories/                  # create, delete, get, getAll (implementados)
-    products/                    # (stubs) create, delete, get, getAll, update
+    products/                    # create, delete, get, getAll, update (implementados)
   models/
     user.js                      # Esquema de usuario
     category.js                  # Esquema de categoría
+    products.js                  # Esquema de producto
   middleware/
     auth.js                      # Verifica el JWT (Bearer token)
   helpers/
@@ -84,10 +85,13 @@ src/
 
 ## Modelo `Category`
 
-| Campo         | Tipo   | Reglas                          |
-|---------------|--------|---------------------------------|
-| `name`        | String | Requerido, único                |
-| `description` | String | Requerido                       |
+| Campo          | Tipo   | Reglas                          |
+|----------------|--------|---------------------------------|
+| `name`         | String | Requerido, único                |
+| `description`  | String | Requerido                       |
+| `productCount` | Number | Cantidad de productos asociados (default `0`) |
+
+`productCount` se guarda en la base y se mantiene actualizado al crear, eliminar o cambiar de categoría un producto (y se recalcula al correr `seed.js`).
 
 ## Endpoints implementados
 
@@ -100,42 +104,52 @@ src/
 
 #### `POST /register`
 
-Body:
+**Request**
 
 ```json
 {
-  "name": "Luana",
-  "email": "Ostembergluana98@gmail.com",
-  "password": "123213"
+  "name": "Prueba",
+  "email": "testmail@mail.com",
+  "password": "123456789.aA"
+}
+```
+
+**Response `201`**
+
+```json
+{
+  "message": "El usuario Prueba se registro exitosamente"
 }
 ```
 
 - Valida que el email no esté en uso.
 - Hashea la contraseña con bcrypt (12 rounds).
-- Responde `201` con un mensaje de éxito.
 - Responde `409` si el email ya está en uso.
 
 #### `POST /login`
 
-Body:
+**Request**
 
 ```json
 {
-  "email": "Ostembergluana98@gmail.com",
-  "password": "123213"
+  "email": "testmail@mail.com",
+  "password": "123456789.aA"
 }
 ```
 
-- Busca el usuario por email y compara la contraseña con bcrypt.
-- Responde con el token y los datos del usuario:
+**Response `200`**
 
 ```json
 {
   "token": "<jwt>",
-  "user": { "id": "<id>", "email": "<email>" }
+  "user": {
+    "id": "<id>",
+    "email": "testmail@mail.com"
+  }
 }
 ```
 
+- Busca el usuario por email y compara la contraseña con bcrypt.
 - El token expira en `2h` y se firma con `SECRET_JWT`.
 - Responde `401` con `Credenciales inválidas` si el email o la contraseña no coinciden.
 
@@ -143,18 +157,21 @@ Body:
 
 Todas las rutas requieren autenticación (`Authorization: Bearer <token>`).
 
-| Método | Ruta               | Descripción                              |
-|--------|--------------------|------------------------------------------|
-| POST   | `/categories`      | Crea una categoría                        |
-| DELETE | `/categories?name=`| Elimina una categoría por nombre          |
-| GET    | `/categories/all`  | Lista todas las categorías                |
-| GET    | `/categories?name=`| Obtiene una categoría por nombre          |
+| Método | Ruta                | Descripción                              |
+|--------|---------------------|------------------------------------------|
+| POST   | `/categories`       | Crea una categoría                        |
+| DELETE | `/categories/:name` | Elimina una categoría por nombre          |
+| GET    | `/categories/all`   | Lista todas las categorías                |
+| GET    | `/categories/:name` | Obtiene una categoría por nombre          |
 
 #### `POST /categories`
 
-Header: `Authorization: Bearer <token>`
+**Request**
 
-Body:
+```
+POST /categories
+Authorization: Bearer <token>
+```
 
 ```json
 {
@@ -163,31 +180,229 @@ Body:
 }
 ```
 
-- Crea la categoría.
-- Responde `201` con `{ message: 'La categoria fue registrada' }`.
+**Response `201`**
+
+```json
+{
+  "message": "La categoria fue registrada"
+}
+```
+
 - Responde `500` con el mensaje del error de validación (ej. nombre duplicado o faltante).
 
-#### `DELETE /categories?name=Rilan`
+#### `DELETE /categories/:name`
 
-Header: `Authorization: Bearer <token>`
+**Request**
 
-- Elimina la categoría cuyo `name` coincide con el query.
-- Responde `201` con `{ message: 'La categoria fue eliminada correctamente' }`.
+```
+DELETE /categories/Tirri
+Authorization: Bearer <token>
+```
+
+**Response `201`**
+
+```json
+{
+  "message": "La categoria fue eliminada correctamente"
+}
+```
+
+- Elimina la categoría cuyo `name` coincide con el parámetro de ruta.
 - Responde `404` si la categoría no existe.
 
 #### `GET /categories/all`
 
-Header: `Authorization: Bearer <token>`
+**Request**
 
-- Devuelve todas las categorías (`200`).
-- Responde `404` si no hay categorías cargadas.
+```
+GET /categories/all
+Authorization: Bearer <token>
+```
 
-#### `GET /categories?name=Rilan`
+**Response `200`**
 
-Header: `Authorization: Bearer <token>`
+```json
+[
+  {
+    "_id": "6af264182d7d359ccb3e5761",
+    "name": "Alisados Permanentes",
+    "description": "Tratamientos de alisado de larga duración con keratina y fórmulas profesionales.",
+    "productCount": 3,
+    "__v": 0
+  },
+  {
+    "_id": "6af264182d7d359ccb3e5762",
+    "name": "Kits de Alisado",
+    "description": "Combos completos de alisado y mantenimiento a precio promocional.",
+    "productCount": 2,
+    "__v": 0
+  }
+]
+```
 
-- Devuelve la categoría con ese nombre (`200`).
+#### `GET /categories/:name`
+
+**Request**
+
+```
+GET /categories/Alisados Permanentes
+Authorization: Bearer <token>
+```
+
+**Response `200`**
+
+```json
+{
+  "_id": "6af264182d7d359ccb3e5761",
+  "name": "Alisados Permanentes",
+  "description": "Tratamientos de alisado de larga duración con keratina y fórmulas profesionales.",
+  "productCount": 3,
+  "__v": 0
+}
+```
+
 - Responde `404` si no existe.
+
+### Productos
+
+| Método | Ruta             | Descripción                                   |
+|--------|------------------|-----------------------------------------------|
+| POST   | `/product`       | Crea un producto                              |
+| PUT    | `/product/:id`   | Actualiza parcialmente un producto por id     |
+| DELETE | `/product/:id`   | Elimina un producto por id                    |
+| GET    | `/product/all`   | Lista todos los productos                     |
+| GET    | `/product/:id`   | Obtiene un producto por id                    |
+
+#### `POST /product`
+
+**Request**
+
+```json
+{
+  "name": "Alisado Permanente Keratina Premium",
+  "description": "Tratamiento de keratina profesional con efecto liso hasta por 4 meses.",
+  "price": 28999,
+  "stock": 25,
+  "category": "Alisados Permanentes"
+}
+```
+
+**Response `201`**
+
+```json
+{
+  "_id": "6af264182d7d359ccb3e5790",
+  "name": "Alisado Permanente Keratina Premium",
+  "description": "Tratamiento de keratina profesional con efecto liso hasta por 4 meses.",
+  "price": 28999,
+  "stock": 25,
+  "category": "6af264182d7d359ccb3e5761",
+  "__v": 0
+}
+```
+
+- La categoría se referencia por **nombre**.
+- Responde `404` si la categoría no existe.
+
+#### `PUT /product/:id`
+
+**Request**
+
+```
+PUT /product/6af264182d7d359ccb3e5790
+```
+
+```json
+{
+  "name": "Alisado Keratina Premium",
+  "stock": 30
+}
+```
+
+**Response `200`**
+
+```json
+{
+  "_id": "6af264182d7d359ccb3e5790",
+  "name": "Alisado Keratina Premium",
+  "description": "Tratamiento de keratina profesional con efecto liso hasta por 4 meses.",
+  "price": 28999,
+  "stock": 30,
+  "category": "6af264182d7d359ccb3e5761",
+  "__v": 0
+}
+```
+
+- Actualiza solo los campos enviados en el body (`name`, `description`, `price`, `stock`, `category`).
+- Responde `400` si el id no es válido y `404` si el producto no existe.
+
+#### `DELETE /product/:id`
+
+**Request**
+
+```
+DELETE /product/6af264182d7d359ccb3e5790
+```
+
+**Response `201`**
+
+```json
+{
+  "message": "La producto fue eliminado correctamente"
+}
+```
+
+- Responde `404` si el producto no existe.
+
+#### `GET /product/all`
+
+**Request**
+
+```
+GET /product/all
+```
+
+**Response `200`**
+
+```json
+[
+  {
+    "_id": "6af264182d7d359ccb3e5790",
+    "name": "Alisado Permanente Keratina Premium",
+    "description": "Tratamiento de keratina profesional con efecto liso hasta por 4 meses.",
+    "price": 28999,
+    "stock": 25,
+    "category": "6af264182d7d359ccb3e5761",
+    "__v": 0
+  }
+]
+```
+
+#### `GET /product/:id`
+
+**Request**
+
+```
+GET /product/6af264182d7d359ccb3e5790
+```
+
+**Response `200`**
+
+```json
+{
+  "_id": "6af264182d7d359ccb3e5790",
+  "name": "Alisado Permanente Keratina Premium",
+  "description": "Tratamiento de keratina profesional con efecto liso hasta por 4 meses.",
+  "price": 28999,
+  "stock": 25,
+  "category": "6af264182d7d359ccb3e5761",
+  "__v": 0
+}
+```
+
+- Responde `404` si no existe.
+
+> Nota: las rutas de productos actualmente **no** están protegidas por el middleware `Auth`.
 
 ### Autenticación por JWT
 
@@ -219,8 +434,5 @@ Los controladores responden con `err.status || 500`.
 
 ## Pendiente / por implementar
 
-- Controladores de **productos** (actualmente son stubs que devuelven `{ message: 'Se registro' }`).
-- Modelo de `Product`.
 - Capa de `services` (archivos vacíos).
-- Revisar las rutas de productos: usan `app.use` con patrones como `/product:id` (debería ser `/:id` y un método HTTP, ej. `app.get`/`app.post`) y el orden de `/all` respecto a `/:id`.
 - En `login.js`, el segundo `throw new HttpError('Credenciales inválidas')` no pasa el `status` (debería ser `new HttpError(401, ...)`).
