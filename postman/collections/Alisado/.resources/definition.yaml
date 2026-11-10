@@ -1,5 +1,0 @@
-$kind: collection
-variables:
-  - key: json_web_token_0car
-    secret: true
-    disabled: false

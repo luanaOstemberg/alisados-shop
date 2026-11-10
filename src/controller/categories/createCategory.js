@@ -1,12 +1,10 @@
-import Category from "../../models/category.js";
+import { createCategory } from "../../services/categories.js";
 
 export default async function CreateCategoryController(req, res) {
     try {
-        const { name, description } = req.body;
-        await Category.create({ name, description });
-        res.status(201).json({ message: 'La categoria fue registrada' });
+        const category = await createCategory(req.body);
+        res.status(201).json({ message: "La categoría fue registrada", category });
     } catch (err) {
         res.status(err.status || 500).json({ message: err.message });
     }
-
 }

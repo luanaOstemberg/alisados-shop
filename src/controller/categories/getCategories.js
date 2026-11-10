@@ -1,13 +1,10 @@
-import Category from "../../models/category.js";
-import HttpError from "../../helpers/classes/HttpError.js";
+import { getCategories } from "../../services/categories.js";
 
 export default async function GetCategoriesController(req, res) {
     try {
-        const categories = await Category.find();
-        if (!categories) throw new HttpError(404, 'No hay categorias cargadas');
+        const categories = await getCategories();
         res.status(200).json(categories);
     } catch (err) {
         res.status(err.status || 500).json({ message: err.message });
     }
-
 }
