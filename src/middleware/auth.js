@@ -1,0 +1,17 @@
+import jwt from "jsonwebtoken";
+
+function auth(req, res, next) {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'Sin token' });
+
+    try {
+        req.user = jwt.verify(token, process.env.SECRET_JWT);
+        next();
+    } catch {
+        res.status(401).json({ message: 'Token inválido' });
+    }
+}
+
+const Auth = auth;
+
+export default Auth;
