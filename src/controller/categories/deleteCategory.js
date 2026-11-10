@@ -3,7 +3,7 @@ import HttpError from "../../helpers/classes/HttpError.js";
 
 export default async function CreateCategoryController(req, res) {
     try {
-        const { name } = req.query;
+        const { name } = req.params;
         const category = await Category.findOneAndDelete({ name });
         if (!category) throw new HttpError(404, 'La categoría no existe');
         res.status(201).json({ message: 'La categoria fue eliminada correctamente' });

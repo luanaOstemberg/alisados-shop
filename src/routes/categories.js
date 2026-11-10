@@ -6,7 +6,7 @@ import Auth from "../middleware/auth.js";
 
 export default function categoriesRoutes(app) {
     app.post('/categories', Auth, CreateCategoryController);
-    app.delete('/categories', Auth, DeleteCategoryController);
+    app.delete('/categories/:name', Auth, DeleteCategoryController);
     app.get('/categories/all', Auth, GetCategoriesController);
-    app.get('/categories', Auth, GetCategoryController);
+    app.get('/categories/:name', Auth, GetCategoryController);
 }
