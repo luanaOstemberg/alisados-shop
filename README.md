@@ -25,14 +25,17 @@ npm install
 
 ## Variables de entorno
 
-Crear un archivo `.env` en la raíz con:
+En la entrega se incluye `.env.example` con valores de ejemplo/placeholder. Copialo a `.env` y completá con tus credenciales reales:
+
+```bash
+cp .env.example .env
+```
 
 ```env
 PORT=9000
 MONGODB_URI=mongodb://...
 SECRET_JWT=tu_clave_secreta
 ```
-
 ## Ejecutar
 
 ```bash
@@ -45,7 +48,8 @@ El servidor se levanta en `PORT` (por defecto `9000`) una vez conectada la base 
 ## Estructura del proyecto
 
 ```
-index.js                         # Punto de entrada: Express, conexión a DB y rutas
+index.js                         # Punto de entrada: conexión a DB y arranque del server
+app.js                           # Configura Express: CORS, JSON y rutas
 src/
   config/
     db.js                        # Conexión a MongoDB
@@ -72,7 +76,7 @@ src/
     functions/
       hashPassword.js            # Hash de contraseña con bcrypt (12 rounds)
       validateEmail.js           # Validación de email por regex
-  services/                      # (vacíos) capa de servicios
+  services/                      # Lógica de negocio (auth, categories, products)
 ```
 
 ## Modelo `User`
@@ -92,6 +96,18 @@ src/
 | `productCount` | Number | Cantidad de productos asociados (default `0`) |
 
 `productCount` se guarda en la base y se mantiene actualizado al crear, eliminar o cambiar de categoría un producto (y se recalcula al correr `seed.js`).
+
+## Arquitectura y separación de responsabilidades
+
+- **app.js**: crea y configura Express (CORS habilitado con `cors()`, `express.json()` y rutas).
+- **index.js**: conecta a MongoDB y levanta el servidor.
+- **routes/**: define los endpoints y aplica middlewares (ej. `Auth`).
+- **controller/**: capa delgada; lee `req` (body/params), llama al service y devuelve la respuesta con el código HTTP adecuado. Maneja errores con `try/catch`.
+- **services/**: toda la lógica de negocio y el acceso a datos (Mongoose). Valida reglas, lanza `HttpError` con su status y mantiene relaciones/conteos.
+- **models/**: esquemas de Mongoose (`User`, `Category`, `Products`).
+- **helpers/**: `HttpError` y `mapError` (normaliza errores de Mongoose a `400`/`409`/`500`).
+
+Los controladores **no** llaman directamente a Mongoose; lo hacen los services. Las lecturas de productos usan `populate("category")` para devolver la categoría completa.
 
 ## Endpoints implementados
 
@@ -199,11 +215,11 @@ DELETE /categories/Tirri
 Authorization: Bearer <token>
 ```
 
-**Response `201`**
+**Response `200`**
 
 ```json
 {
-  "message": "La categoria fue eliminada correctamente"
+  "message": "La categoría fue eliminada correctamente"
 }
 ```
 
@@ -296,12 +312,19 @@ Authorization: Bearer <token>
   "description": "Tratamiento de keratina profesional con efecto liso hasta por 4 meses.",
   "price": 28999,
   "stock": 25,
-  "category": "6af264182d7d359ccb3e5761",
+  "category": {
+    "_id": "6af264182d7d359ccb3e5761",
+    "name": "Alisados Permanentes",
+    "description": "Tratamientos de alisado de larga duración con keratina y fórmulas profesionales.",
+    "productCount": 3,
+    "__v": 0
+  },
   "__v": 0
 }
 ```
 
-- La categoría se referencia por **nombre**.
+- La categoría se referencia por **nombre** en el body.
+- Las lecturas (`GET`, y la respuesta de `POST`/`PUT`) incluyen la categoría completa vía `populate`.
 - Responde `404` si la categoría no existe.
 
 #### `PUT /product/:id`
@@ -328,13 +351,20 @@ PUT /product/6af264182d7d359ccb3e5790
   "description": "Tratamiento de keratina profesional con efecto liso hasta por 4 meses.",
   "price": 28999,
   "stock": 30,
-  "category": "6af264182d7d359ccb3e5761",
+  "category": {
+    "_id": "6af264182d7d359ccb3e5761",
+    "name": "Alisados Permanentes",
+    "description": "Tratamientos de alisado de larga duración con keratina y fórmulas profesionales.",
+    "productCount": 3,
+    "__v": 0
+  },
   "__v": 0
 }
 ```
 
 - Actualiza solo los campos enviados en el body (`name`, `description`, `price`, `stock`, `category`).
-- Responde `400` si el id no es válido y `404` si el producto no existe.
+- El `category` del body puede ser id o nombre.
+- Responde `400` si el id no es válido y `404` si el producto o la categoría no existen.
 
 #### `DELETE /product/:id`
 
@@ -344,7 +374,7 @@ PUT /product/6af264182d7d359ccb3e5790
 DELETE /product/6af264182d7d359ccb3e5790
 ```
 
-**Response `201`**
+**Response `200`**
 
 ```json
 {
@@ -372,7 +402,13 @@ GET /product/all
     "description": "Tratamiento de keratina profesional con efecto liso hasta por 4 meses.",
     "price": 28999,
     "stock": 25,
-    "category": "6af264182d7d359ccb3e5761",
+    "category": {
+      "_id": "6af264182d7d359ccb3e5761",
+      "name": "Alisados Permanentes",
+      "description": "Tratamientos de alisado de larga duración con keratina y fórmulas profesionales.",
+      "productCount": 3,
+      "__v": 0
+    },
     "__v": 0
   }
 ]
@@ -395,7 +431,13 @@ GET /product/6af264182d7d359ccb3e5790
   "description": "Tratamiento de keratina profesional con efecto liso hasta por 4 meses.",
   "price": 28999,
   "stock": 25,
-  "category": "6af264182d7d359ccb3e5761",
+  "category": {
+    "_id": "6af264182d7d359ccb3e5761",
+    "name": "Alisados Permanentes",
+    "description": "Tratamientos de alisado de larga duración con keratina y fórmulas profesionales.",
+    "productCount": 3,
+    "__v": 0
+  },
   "__v": 0
 }
 ```
@@ -431,8 +473,3 @@ throw new HttpError(401, 'Credenciales inválidas');
 ```
 
 Los controladores responden con `err.status || 500`.
-
-## Pendiente / por implementar
-
-- Capa de `services` (archivos vacíos).
-- En `login.js`, el segundo `throw new HttpError('Credenciales inválidas')` no pasa el `status` (debería ser `new HttpError(401, ...)`).
