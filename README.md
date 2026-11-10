@@ -1,7 +1,7 @@
 # Alisado Shop BE
 
-API REST para una tienda, construida con **Node.js + Express** y **MongoDB (Mongoose)**.
-Usando Modules
+
+API REST para una tienda de producto de alisados, construida con **Node.js + Express** y **MongoDB (Mongoose)**.
 
 ## Stack
 
